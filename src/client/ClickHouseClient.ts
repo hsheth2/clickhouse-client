@@ -9,7 +9,7 @@ import * as StreamArray from 'stream-json/streamers/StreamArray';
 import * as zlib from 'zlib';
 
 import { Parser } from 'stream-json';
-import { Observable } from 'rxjs';
+// import { Observable } from 'rxjs';
 
 import {
   ClickHouseConnectionProtocol,
@@ -31,9 +31,9 @@ export class ClickHouseClient {
    */
   private _getRequestOptions(
     query: string,
-    withoutFormat: boolean = false
+    withoutFormat = false
   ): AxiosRequestConfig<any> {
-    let url = this._getUrl();
+    const url = this._getUrl();
 
     if (!withoutFormat) {
       query = `${query.trimEnd()} FORMAT ${this.options.format}`;
@@ -51,7 +51,7 @@ export class ClickHouseClient {
     const requestOptions: AxiosRequestConfig = {
       url,
       params,
-      responseType: 'stream',
+      // responseType: 'stream',
       method: 'POST',
       auth: {
         username: this.options.username,
@@ -110,21 +110,22 @@ export class ClickHouseClient {
    * @private
    */
   private _queryPromise<T = any>(query: string) {
-    return new Promise<T[]>((resolve, reject) => {
-      const _data: T[] = [];
+    return this._queryObservable(query);
+    // return new Promise<T[]>((resolve, reject) => {
+    // const _data: T[] = [];
 
-      this._queryObservable<T>(query).subscribe({
-        error: (error) => {
-          return reject(error);
-        },
-        next: (row) => {
-          _data.push(row);
-        },
-        complete: () => {
-          return resolve(_data);
-        }
-      });
-    });
+    // this._queryObservable<T>(query).subscribe({
+    //   error: (error) => {
+    //     return reject(error);
+    //   },
+    //   next: (row) => {
+    //     _data.push(row);
+    //   },
+    //   complete: () => {
+    //     return resolve(_data);
+    //   }
+    // });
+    // });
   }
 
   /**
@@ -132,59 +133,56 @@ export class ClickHouseClient {
    * @private
    */
   private _queryObservable<T = any>(query: string) {
-    return new Observable<T>((subscriber) => {
-      axios
-        .request(this._getRequestOptions(query))
-        .then((response) => {
-          const stream: IncomingMessage = response.data;
+    return axios.request(this._getRequestOptions(query));
+    // .then((response) => {
+    // const stream: IncomingMessage = response.data;
 
-          if (this.options.format == ClickHouseDataFormat.JSON) {
-            const pipeline = stream
-              .pipe(
-                new Parser({
-                  jsonStreaming: true
-                })
-              )
-              .pipe(
-                new Pick({
-                  filter: 'data'
-                })
-              )
-              .pipe(new StreamArray());
+    //   if (this.options.format == ClickHouseDataFormat.JSON) {
+    //     const pipeline = stream
+    //       .pipe(
+    //         new Parser({
+    //           jsonStreaming: true
+    //         })
+    //       )
+    //       .pipe(
+    //         new Pick({
+    //           filter: 'data'
+    //         })
+    //       )
+    //       .pipe(new StreamArray());
 
-            pipeline
-              .on('data', (row) => {
-                subscriber.next(row.value as T);
-              })
-              .on('end', () => {
-                subscriber.complete();
-              });
-          } else {
-            throw new Error(
-              'Unsupported data format. Only JSON is supported for now.'
-            );
-          }
-        })
-        .catch((reason) => {
-          if (reason && reason.response) {
-            let err: string = '';
+    //     pipeline
+    //       .on('data', (row) => {
+    //         subscriber.next(row.value as T);
+    //       })
+    //       .on('end', () => {
+    //         subscriber.complete();
+    //       });
+    //   } else {
+    //     throw new Error(
+    //       'Unsupported data format. Only JSON is supported for now.'
+    //     );
+    //   }
+    // })
+    // .catch((reason) => {
+    //   if (reason && reason.response) {
+    //     let err = '';
 
-            reason.response.data
-              .on('data', (chunk) => {
-                err += chunk.toString('utf8');
-              })
-              .on('end', () => {
-                this.options.logger.error(err.trim());
-                subscriber.error(err.trim());
+    //     reason.response.data
+    //       .on('data', (chunk) => {
+    //         err += chunk.toString('utf8');
+    //       })
+    //       .on('end', () => {
+    //         this.options.logger.error(err.trim());
+    //         subscriber.error(err.trim());
 
-                err = '';
-              });
-          } else {
-            this.options.logger.error(reason);
-            subscriber.error(reason);
-          }
-        });
-    });
+    //         err = '';
+    //       });
+    //   } else {
+    //     this.options.logger.error(reason);
+    //     subscriber.error(reason);
+    //   }
+    // });
   }
 
   /**
@@ -253,7 +251,7 @@ export class ClickHouseClient {
    *
    * @param timeout timeout in milliseconds, defaults to 3000.
    */
-  public ping(timeout: number = 3000) {
+  public ping(timeout = 3000) {
     return new Promise<boolean>((resolve, reject) => {
       axios
         .get(`${this._getUrl()}/ping`, {
